@@ -201,7 +201,7 @@ def getHttpTestInfo(query, itemid):
 
 def insertData(exe,table,itemid,value):
 
-    sql = "insert into %s values (%s,%s,%s,0)" % (table,itemid,int(time()),value)
+    sql = "insert into %s values ('%s','%s','%s',0)" % (table,itemid,int(time()),value)
     exe(sql)
 
 def myRequests(request,

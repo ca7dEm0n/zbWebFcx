@@ -5,7 +5,61 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 import pymysql.cursors
 from re import compile
+from time import time,sleep
+import struct
 import sys
+import json
+
+class ZbxSender:
+    def __init__(self):
+        self.status  = None
+        self.host    = None
+        self.port    = int(10051)
+        self.packet  = {
+            'request':'sender data',
+            'data': [],
+        }
+
+
+    def __len__(self):
+        return len(self.packet["data"])
+    
+    def add(self,host,key,value,clock=int(time())):
+        data = {
+            "host":host,
+            "key":key,
+            "value": value,
+            "clock": clock
+        }
+        self.packet["data"].append(data)
+    
+    def clean(self):
+        self.packet  = {
+            'request':'sender data',
+            'data': []
+        }
+
+    def send(self):
+        if len(self):
+            import socket
+            packet =  json.dumps(self.packet).encode('utf-8')
+            s      =  socket.socket()
+            try:
+                s.connect((self.host, int(self.port)))
+
+                s.send(packet)
+                sleep(0.5)
+                status      = s.recv(1024).decode('utf-8')
+                re_status   = compile('(\{.*\})')
+                status      = re_status.search(status).groups()[0]
+                self.status = json.loads(status)
+            except Exception as e:
+                print ("ERROR: %s " % e)
+            finally:
+                s.close()
+        else:
+            print ("Nothing to do.")
+
 
 
 class MySQL:
@@ -146,8 +200,8 @@ def getHttpTestInfo(query, itemid):
     return result_dict
 
 def insertData(exe,table,itemid,value):
-    from time import time
-    sql = "insert into %s values ('%s','%s','%s','0')" % (table,itemid,int(time()),value)
+
+    sql = "insert into %s values (%s,%s,%s,0)" % (table,itemid,int(time()),value)
     exe(sql)
 
 def myRequests(request,
@@ -230,30 +284,38 @@ def myRequests(request,
 
 
 if __name__ == "__main__":
+    # 实例化
+    z = ZbxSender()
+    m = MySQL()
+    r = requests.Session()
+
+    # zbxSend
+    z.host = "127.0.0.1"
+    z.port = "10051"
+ 
     # 获取告警item
-    ITEMID = int(sys.argv[1])
+    ARGV   = sys.argv[1].split('|')
+    ITEMID,HOSTNAME,ITEMKEY = ARGV[0],ARGV[1],ARGV[2]
 
     # 读取Zabbix配置文件
-    CONFIG = "/tmp/zabbix.conf"
+    CONFIG = "/etc/zabbix/zabbix_server.conf"
 
-    f = open(CONFIG)
-    configList = [
+    f   = open(CONFIG)
+    configList  = [
         _.split()[0] for _ in f.readlines() if not _.startswith('#')
         if "=" in _
     ]
-    configDict = { _.split("=")[0]: _.split("=")[1] for _ in configList }
+    configDict = { _.split("=")[0]: _.split("=")[1] 
+                            for _ in configList }
 
-    # 实例化mysql
-    m = MySQL()
+
+    # 数据库连接
     m.connect(
     host=configDict.get("DBHost","localhost"),
     user=configDict.get("DBUser","zabbix"),
     password=configDict.get("DBPassword","zabbix"),
     port=int(configDict.setdefault("DBPort",3306)),
     database=configDict.get("DBName","zabbix"))
-
-    # 实例化requests
-    r = requests.Session()
 
     httpTestInfo = getHttpTestInfo(m.query, ITEMID)
     if httpTestInfo:
@@ -336,5 +398,8 @@ if __name__ == "__main__":
 
         httpTestItemID = getHttpTypeItemID(m.query,"httptest",httpTestID)
         insertData(m.execute,"history_uint",httpTestItemID[3],totalStatus)
+        z.add(HOSTNAME,"trapper.%s" % ITEMKEY,totalStatus)
+        z.send()
         if lastError:
             insertData(m.execute,"history_str",httpTestItemID[4],lastError)
+        print (z.status)

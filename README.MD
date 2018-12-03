@@ -5,7 +5,7 @@
 Zabbix `Web monitoring`变频器
 
 ### 使用方法
-传入`Zabbix Web monitoring`某个`itemID`，自动测试应用场景，并将结果插入数据库。
+传入`Zabbix Web monitoring`某个`itemID`，自动测试应用场景，并将结果发送到`Zabbix Server`。
 
 ### 应用场景
 

@@ -6,7 +6,6 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 import pymysql.cursors
 from re import compile
 from time import time,sleep
-import struct
 import sys
 import json
 
@@ -19,7 +18,6 @@ class ZbxSender:
             'request':'sender data',
             'data': [],
         }
-
 
     def __len__(self):
         return len(self.packet["data"])
@@ -46,7 +44,6 @@ class ZbxSender:
             s      =  socket.socket()
             try:
                 s.connect((self.host, int(self.port)))
-
                 s.send(packet)
                 sleep(0.5)
                 status      = s.recv(1024).decode('utf-8')
@@ -402,4 +399,3 @@ if __name__ == "__main__":
         z.send()
         if lastError:
             insertData(m.execute,"history_str",httpTestItemID[4],lastError)
-        print (z.status)

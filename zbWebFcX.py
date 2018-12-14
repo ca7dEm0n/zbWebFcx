@@ -40,7 +40,7 @@ class ZbxSender:
     def send(self):
         if len(self):
             import socket
-            packet =  json.dumps(self.packet).encode('utf-8')
+            packet =  json.dumps(self.packet,ensure_ascii=False).encode('utf-8')
             s      =  socket.socket()
             try:
                 s.connect((self.host, int(self.port)))
